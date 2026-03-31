@@ -13,3 +13,4 @@ dist/
 build/
 *.log
 backend/interactions.db
+backend/ca.pem

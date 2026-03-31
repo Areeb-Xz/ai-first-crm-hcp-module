@@ -5,7 +5,7 @@ load_dotenv()
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "sqlite:///./interactions.db"  # for quick local dev; can switch to MySQL/Postgres
+    "mysql+pymysql://root:password@localhost/crm_hcp"
 )
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
