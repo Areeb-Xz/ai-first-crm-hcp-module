@@ -17,40 +17,46 @@ def _get_db() -> Session:
 
 # 1) Log Interaction
 def log_interaction_tool(state: AgentState) -> AgentState:
-    """Create an interaction from the last user message (raw notes)."""
     db = _get_db()
     last = state["messages"][-1]
     if not isinstance(last, HumanMessage):
         return state
 
-    
     prompt = f"""
-You are a CRM assistant for pharma reps.
-Extract: HCP name, specialty, channel, and raw notes from this text.
-Return JSON with keys: hcp_name, specialty, channel, raw_notes.
+Extract the following fields from this text and return ONLY a JSON object with these exact keys:
+hcp_name, specialty, channel, raw_notes
 
-Text:
-{last.content}
+Text: {last.content}
+
+Return only valid JSON, no explanation. Example:
+{{"hcp_name": "Dr. Smith", "specialty": "Cardiology", "channel": "In-person", "raw_notes": "Discussed trial data"}}
 """
 
     completion = client.chat.completions.create(
         model=GROQ_MODEL,
         messages=[{"role": "user", "content": prompt}],
     )
-    content = completion.choices[0].message.content
+    content = completion.choices[0].message.content.strip()
+
+    import json, re
+    try:
+        match = re.search(r'\{.*\}', content, re.DOTALL)
+        data = json.loads(match.group()) if match else {}
+    except Exception:
+        data = {}
 
     interaction = models.Interaction(
-        hcp_name="Unknown",
-        specialty=None,
-        channel=None,
-        raw_notes=last.content,
+        hcp_name=data.get("hcp_name", "Unknown"),
+        specialty=data.get("specialty"),
+        channel=data.get("channel"),
+        raw_notes=data.get("raw_notes", last.content),
     )
     db.add(interaction)
     db.commit()
     db.refresh(interaction)
 
     state["messages"].append(
-        AIMessage(content=f"Interaction logged with id={interaction.id}.")
+        AIMessage(content=f"Interaction logged: HCP Name: {interaction.hcp_name} | Specialty: {interaction.specialty} | Channel: {interaction.channel} | Key Discussion Points: {interaction.raw_notes}")
     )
     return state
 

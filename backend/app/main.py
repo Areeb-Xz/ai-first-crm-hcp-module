@@ -5,10 +5,19 @@ from langchain_core.messages import HumanMessage
 from .db import Base, engine, SessionLocal
 from . import models, schemas
 from .langgraph_agent import app_graph
+from fastapi.middleware.cors import CORSMiddleware
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="AI-First CRM HCP Module")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 def get_db():
     db = SessionLocal()
