@@ -125,8 +125,6 @@ DATABASE_URL=mysql+pymysql://avnadmin:YOUR_PASSWORD@YOUR_HOST:YOUR_PORT/defaultd
 - Place `ca.pem` inside `backend/` — it is also gitignored.
 - `.gitignore` already excludes both `.env` and `ca.pem`, so secrets remain local.
 
-`.gitignore` already ignores `.env`.
-
 ### Data Model
 
 `backend/app/models.py` defines an `Interaction` table with:
