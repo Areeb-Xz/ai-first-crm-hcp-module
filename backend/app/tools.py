@@ -62,37 +62,57 @@ Return only valid JSON, no explanation. Example:
 
 # 2) Edit Interaction
 def edit_interaction_tool(state: AgentState) -> AgentState:
-    """Edit an existing interaction based on user instructions."""
     db = _get_db()
     last = state["messages"][-1]
     if not isinstance(last, HumanMessage):
         return state
-    
+
     text = last.content
 
-    import re
+    import re, json
     m = re.search(r"interaction\s+(\d+)", text, re.IGNORECASE)
     if not m:
-        state["messages"].append(
-            AIMessage(content="Please specify which interaction id to edit.")
-        )
+        state["messages"].append(AIMessage(content="Please specify which interaction id to edit."))
         return state
 
     interaction_id = int(m.group(1))
     interaction = db.query(models.Interaction).get(interaction_id)
     if not interaction:
-        state["messages"].append(
-            AIMessage(content=f"No interaction found with id={interaction_id}.")
-        )
+        state["messages"].append(AIMessage(content=f"No interaction found with id={interaction_id}."))
         return state
 
-    interaction.raw_notes = text
-    db.commit()
-    db.refresh(interaction)
+    # Use Groq to extract which field to update
+    prompt = f"""
+From this edit instruction, extract the field to update and its new value.
+Return ONLY a JSON object with keys: "field" and "value".
+Valid fields: hcp_name, specialty, channel, raw_notes
 
-    state["messages"].append(
-        AIMessage(content=f"Interaction {interaction_id} updated.")
+Instruction: {text}
+
+Example: {{"field": "channel", "value": "email"}}
+"""
+    completion = client.chat.completions.create(
+        model=GROQ_MODEL,
+        messages=[{"role": "user", "content": prompt}],
     )
+    content = completion.choices[0].message.content.strip()
+    try:
+        match = re.search(r'\{.*\}', content, re.DOTALL)
+        data = json.loads(match.group()) if match else {}
+    except Exception:
+        data = {}
+
+    field = data.get("field")
+    value = data.get("value")
+
+    if field and hasattr(interaction, field):
+        setattr(interaction, field, value)
+        db.commit()
+        db.refresh(interaction)
+        state["messages"].append(AIMessage(content=f"Interaction {interaction_id} updated: {field} set to '{value}'."))
+    else:
+        state["messages"].append(AIMessage(content="Could not determine what to update. Please be more specific."))
+
     return state
 
 # 3) Get Interaction History

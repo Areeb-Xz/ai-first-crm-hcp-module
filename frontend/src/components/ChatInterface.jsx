@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { sendChatMessage, addUserMessage } from '../store/chatSlice';
+import { fetchInteractions } from '../store/interactionsSlice';
 
 function ChatInterface() {
   const dispatch = useDispatch();
@@ -10,13 +11,14 @@ function ChatInterface() {
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
-  const handleSend = () => {
-    const text = input.trim();
-    if (!text || status === 'loading') return;
-    dispatch(addUserMessage(text));
-    dispatch(sendChatMessage(text));
-    setInput('');
-  };
+  const handleSend = async () => {
+  const text = input.trim();
+  if (!text || status === 'loading') return;
+  dispatch(addUserMessage(text));
+  await dispatch(sendChatMessage(text));
+  dispatch(fetchInteractions());
+  setInput('');
+};
 
   const handleKey = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } };
 
@@ -30,7 +32,7 @@ function ChatInterface() {
         )}
         {messages.map((msg, i) => (
           <div key={i} style={{ ...styles.bubble, ...(msg.role === 'user' ? styles.userBubble : styles.aiBubble) }}>
-            {msg.content}
+            <span dangerouslySetInnerHTML={{ __html: msg.content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br/>') }} />
           </div>
         ))}
         {status === 'loading' && <div style={{ ...styles.bubble, ...styles.aiBubble }}>Thinking...</div>}
