@@ -54,13 +54,18 @@ Routing logic in the agent decides, per message, whether to use one of the tools
 - React (Create React App)
 - Redux Toolkit, React Redux
 - Axios
+- Font: Google Inter
 
 **Backend**
 
 - Python 3
 - FastAPI, Uvicorn
-- SQLAlchemy, SQLite (can be switched to MySQL/Postgres)
+- SQLAlchemy, MySQL (via PyMySQL driver)
 - python‑dotenv
+
+**Database**
+
+- MySQL hosted on [Aiven](https://aiven.io) (free tier cloud MySQL)
 
 **AI / Agents**
 
@@ -106,15 +111,19 @@ ai-first-crm-hcp-module/
 `backend/app/config.py`:
 
 - Loads environment variables from `.env`.
-- Defaults `DATABASE_URL` to `sqlite:///./interactions.db`.
+- Reads `DATABASE_URL` for the MySQL connection string.
 - Uses `GROQ_MODEL = "llama-3.3-70b-versatile"`.
 
 Create `backend/.env`:
 
 ```env
 GROQ_API_KEY=your_groq_api_key_here
-DATABASE_URL=sqlite:///./interactions.db
+DATABASE_URL=mysql+pymysql://avnadmin:YOUR_PASSWORD@YOUR_HOST:YOUR_PORT/defaultdb?ssl_ca=ca.pem
 ```
+
+- `ca.pem` is the SSL CA certificate downloaded from your Aiven MySQL service dashboard.
+- Place `ca.pem` inside `backend/` — it is also gitignored.
+- `.gitignore` already excludes both `.env` and `ca.pem`, so secrets remain local.
 
 `.gitignore` already ignores `.env`.
 
@@ -203,20 +212,29 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-3. Create a `.env` file **inside `backend/`** :
+3. Set up the database:
+
+- Create a free MySQL service on [Aiven](https://aiven.io).
+- Download the **CA Certificate** (`ca.pem`) from your Aiven service dashboard.
+- Place `ca.pem` inside the `backend/` folder.
+
+4. Create a `.env` file **inside `backend/`** (gitignored — never commit this):
 
 ```env
 GROQ_API_KEY=your_groq_api_key_here
-DATABASE_URL=sqlite:///./interactions.db
+DATABASE_URL=mysql+pymysql://avnadmin:YOUR_PASSWORD@YOUR_HOST:YOUR_PORT/defaultdb?ssl_ca=ca.pem
 ```
 
-4. Start the backend server:
+Replace `YOUR_PASSWORD`, `YOUR_HOST`, and `YOUR_PORT` with the values from your Aiven service overview page.
+
+5. Start the backend server:
 
 ```bash
 py -m uvicorn app.main:app --reload
 ```
 
 The API will be available at `http://127.0.0.1:8000` and interactive docs at `http://127.0.0.1:8000/docs`.
+On first run, SQLAlchemy automatically creates the `interactions` table in your Aiven MySQL database.
 
 ---
 
